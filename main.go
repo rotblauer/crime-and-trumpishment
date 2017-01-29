@@ -1,13 +1,16 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"github.com/kelseyhightower/envconfig"
-	"log"
+	"gopkg.in/neurosnap/sentences.v1/english"
+	"io/ioutil"
+	"strconv"
+	"strings"
 )
-
-const appEnvName = "crimeandtrumpishment"
 
 type Specification struct {
 	Consumerkey    string
@@ -16,37 +19,96 @@ type Specification struct {
 	Accesssecret   string
 }
 
-func getBookmark() []byte {
-	// read val from "bookmarker_index"
+func getBookmark(where string) int {
+	b, err := ioutil.ReadFile(where)
+	if err != nil {
+		panic(err)
+	}
+	i, _ := strconv.Atoi(string(b))
+	return i
 }
 
-func setBookmark(b []byte) error {
-	// update bookmark after success twttering, where byte is last key
+func setBookmark(where string, i int) error {
+	b := []byte(strconv.Itoa(i))
+	err := ioutil.WriteFile(where, b, 0644)
+	if err != nil {
+		panic(err)
+	}
+	return err
 }
 
-func getContent(b []byte) string {
-	// return v from k+v where k is b as return from getBookmark
+func trumpize(s string) string {
+
+	var trumpableWords = map[string]string{
+		" his ": " Trump's ",
+		" him ": " Trump ",
+		" he ":  " Trump ",
+		"His ":  "Trump's ",
+		"Him ":  "Trump ",
+		"He ":   "Trump ",
+	}
+
+	for word, trumpizedWord := range trumpableWords {
+		s = strings.Replace(s, word, trumpizedWord, -1)
+	}
+
+	return s
 }
 
-func setContent(sentence string) error {
-	// should auto++ the key
-
+func formatSentence(s string) {
+	var t = strings.TrimSpace(s)
+	if len(t) > 140 {
+		t = t[0:139]
+		var ta = strings.Split(t, " ")
+		ta = ta[0 : len(ta)-2]
+		t = strings.Join(ta, " ")
+		t = t + "!"
+	}
+	fmt.Println(trumpize(t))
 }
 
 // point it at a .txt of a book and run to p
-func parseOriginal(f string) error {
+func getOriginalSentence(i int, f string) (string, error) {
 	// reads through original text and cleverly parses sentences feeding them to setContent(i, sentece)
 
+	// can we really read all of crime&punishment into memory? we'll find out...
+	content, err := ioutil.ReadFile(f)
+	if err != nil {
+		//Do something
+	}
+
+	tokenizer, err := english.NewSentenceTokenizer(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	sentences := tokenizer.Tokenize(string(content))
+
+	return sentences[i].Text, err
 }
 
 func main() {
 
+	var appenvname string
+	var bookpath string
+	var bookmarkpath string
+	flag.StringVar(&appenvname, "env-prefix", "trumper", "prefix_ for exported twitter api app config vars, like TRUMPER_CONSUMERKEY and TRUMPER_CONSUMERSECRET")
+	flag.StringVar(&bookpath, "book", "crimeandpunishment.txt", "absolute (preferably) path to the book you want trweempyize")
+	flag.StringVar(&bookmarkpath, "bookmark", "bookmark.txt", "absolute (preferable) path to a file to hold your bookmark index")
+	flag.Parse()
+
+	// export TRUMPER_CONSUMERKEY=asdfasdfasdfasdfawerwer890232
+	// export TRUMPER_CONSUMERSECRET=asdfasfq2345qwefasdfasdfqw345q3tae
+	// export TRUMPER_ACCESSTOKEN=aslfjq345ouqp8ufp89u3495r8awiejpqo348urtpaoisjdfasjf
+	// export TRUMPER_ACCESSSECRET=a;alskjdf;aljsf;laksjfpaoiweurpqo384urpa8sdfasdfasdf
+	// * note that you can set the TRUMPER_ prefix as a flag
 	var s Specification
-	err := envconfig.Process(appEnvName, &s)
+	err := envconfig.Process(appenvname, &s)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 	}
 
+	// env vars set twitter authors (get it?)
 	config := oauth1.NewConfig(s.Consumerkey, s.Consumersecret)
 	token := oauth1.NewToken(s.Accesstoken, s.Accesssecret)
 	httpClient := config.Client(oauth1.NoContext, token)
@@ -54,24 +116,23 @@ func main() {
 	// Twitter client
 	client := twitter.NewClient(httpClient)
 
-	// break every paragraph into a bucket.
-	// break every sentence into a k-v
-	// for both buckets and k/v's, id's should auto++.
+	// Get bookmark
+	bm := getBookmark(bookmarkpath)
 
-	// create bucket 'bookmarker', where key:'iam' -> {paragraph: pp, sentence: ss} as jsonable struct
+	currentSentence, e := getOriginalSentence(bm, bookpath)
+	if e != nil {
+		fmt.Println("shit e", e)
+	}
 
-	// do reading.
-	// parse sentences. sentences are separated by a period that is not prefixed by a capital letter
-	// ["K." is not a sentence.]
-	// ie "They went to the church in K. and prayed."
-	// replace all pronouns with Trump, where pronouns are Capitalized words.
-	// replace all "K." with "T."
-	// replace all "his" with "Trump's"
-	// replace all "him" with "Trump"
-
-	// TODO: de Sade
+	trumpizedSentence := trumpize(currentSentence)
 
 	// Send a Tweet
-	client.Statuses.Update("just setting up my twttr", nil) // tweet, response, err
+	_, _, err = client.Statuses.Update(trumpizedSentence, nil) // tweet, response, err
+	if err != nil {
+		fmt.Println("shit err tweetin trumpy", err)
+	} else {
+		setBookmark(bookmarkpath, bm+1)
+	}
 
+	// TODO: de Sade
 }
