@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Specification struct {
@@ -55,7 +56,7 @@ func trumpize(s string) string {
 	return s
 }
 
-func formatSentence(s string) {
+func formatSentence(s string) string {
 	var t = strings.TrimSpace(s)
 	if len(t) > 140 {
 		t = t[0:139]
@@ -64,7 +65,7 @@ func formatSentence(s string) {
 		t = strings.Join(ta, " ")
 		t = t + "!"
 	}
-	fmt.Println(trumpize(t))
+	return t
 }
 
 // point it at a .txt of a book and run to p
@@ -125,13 +126,15 @@ func main() {
 	}
 
 	trumpizedSentence := trumpize(currentSentence)
+	formattedTrumpizedSentence := formatSentence(trumpizedSentence)
 
 	// Send a Tweet
-	_, _, err = client.Statuses.Update(trumpizedSentence, nil) // tweet, response, err
+	_, _, err = client.Statuses.Update(formattedTrumpizedSentence, nil) // tweet, response, err
 	if err != nil {
 		fmt.Println("shit err tweetin trumpy", err)
 	} else {
 		setBookmark(bookmarkpath, bm+1)
+		fmt.Println(bm, time.Now(), formattedTrumpizedSentence)
 	}
 
 	// TODO: de Sade
