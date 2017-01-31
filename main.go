@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/dghubble/go-twitter/twitter"
-	"github.com/dghubble/oauth1"
-	"github.com/kelseyhightower/envconfig"
-	"gopkg.in/neurosnap/sentences.v1/english"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
+	"github.com/kelseyhightower/envconfig"
+	"gopkg.in/neurosnap/sentences.v1/english"
 )
 
 type Specification struct {
@@ -41,12 +42,16 @@ func setBookmark(where string, i int) error {
 func trumpize(s string) string {
 
 	var trumpableWords = map[string]string{
-		" his ": " Trump's ",
-		" him ": " Trump ",
-		" he ":  " Trump ",
-		"His ":  "Trump's ",
-		"Him ":  "Trump ",
-		"He ":   "Trump ",
+		" his ": " @realDonaldTrump's ",
+		" him ": " @realDonaldTrump ",
+		" he ":  " @realDonaldTrump ",
+		" him,": " @realDonaldTrump,",
+		" his,": " @realDonaldTrump's,",
+		" him.": " @realDonaldTrump.",
+		" his.": " @realDonaldTrump's.",
+		"His ":  ".@realDonaldTrump's ",
+		"Him ":  ".@realDonaldTrump ",
+		"He ":   ".@realDonaldTrump ",
 	}
 
 	for word, trumpizedWord := range trumpableWords {
